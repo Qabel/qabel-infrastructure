@@ -1,0 +1,8 @@
+_venv
+applications
+app-data
+.idea
+activate.sh
+*~
+.cache
+__pycache__

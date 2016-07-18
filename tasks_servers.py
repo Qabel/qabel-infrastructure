@@ -115,6 +115,7 @@ def start_redis(ctx):
     redis_server = ctx.qabel.testing.redis
     command_line = [
         redis_server,
+        '--bind', 'localhost',
         '--port', REDIS_PORT,
         '--pidfile', redis_pidfile.absolute(),
         '--dir', redis_path,

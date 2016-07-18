@@ -1,13 +1,4 @@
-# testing
-Repo for testing.
-
-* testcases/ for description of testcases. GER/EN
-* code/ for code that tests our services.
-  * Note that we don't want to replicate the test suites of the services here. We want to test interaction between
-    services and important behaviours here. So the tests are few in number but still useful to point out errors
-    that just don't occur in a development/testing environment.
-
-Please report any issues into the tested server repos directly.
+# qabel-infrastructure
 
 ## Ad-hoc deployment/testing
 

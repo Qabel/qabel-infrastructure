@@ -1,0 +1,10 @@
+invoke>=0.13.0
+alembic
+psycopg2
+pytest
+requests
+pprintpp
+termcolor
+colorama
+pytest-timeout
+uwsgi

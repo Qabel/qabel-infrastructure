@@ -1,0 +1,128 @@
+qabel:
+    # Overview of the testing configuration:
+    # PostgreSQL on a unix socket in /tmp (suffix 27901)
+    # Redis on port 27902 XXX That's not true ATM
+    #
+    # The Qabel servers run on the ports as defined by the start-servers.sh script
+    # qabel-accounting on port 9696
+    # qabel-block on port 9697 with local-storage backend
+    # qabel-drop on port 5000
+    # qabel-index on port 9698
+
+    testing:
+        # Use different testing environments like so:
+        # $ inv test --environment testing
+        # or, shorter:
+        # $ inv test -e testing
+
+        # This is where application data (postgresql database, redis database) is stored
+        # Note: qabel.block.local-storage is a separate setting. If you also want the block uploads here,
+        #       you'll need to change that one in your invoke.yaml as well.
+        app_data: app-data
+        # Name of the "pgctl" command to use (name or path)
+        pgctl: pg_ctl
+        # Name of the "redis-server" command to use (name or path)
+        redis: redis-server
+
+        adhoc:
+            # This is the default testing environment which uses local ad-hoc infrastructure
+            start_servers: true
+            accounting: http://localhost:9696/
+            block: http://localhost:9697/
+            drop: http://localhost:5000/
+            index: http://localhost:9698/
+
+        testing:
+            accounting: https://test-accounting.qabel.de
+            block: http://testing.qabel.de:8888
+            # XXX where does the testing drop run?
+            # XXX where will the testing index run?
+            drop: nul
+            index: nul
+
+    block:
+        # options for the block server
+
+        # no extra logging config
+        logging-config:
+        psql_dsn: postgresql://qabel-block@localhost:27901/qabel-block?host=/tmp
+        redis-port: 27902
+        accounting-host: http://localhost:9696  # config expansion maybe with a syntax like [$]{qabel.testing.accounting}
+        local-storage: ../../app-data/block-storage
+        apisecret: lapislazuli
+
+        uwsgi:
+            http-socket: :9697
+
+    # And now for something completely different:
+    # YAML's witnesses: did you know you can automate copy/paste in YAML?
+    django_log_to_console: &django_log_to_console  # copy and...
+        LOGGING:
+            version: 1
+            formatters:
+                simple:
+                    format: "%(levelname)s %(message)s"
+                verbose:
+                    format: "%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s"
+            handlers:
+                console:
+                    class: logging.StreamHandler
+                    formatter: simple
+                    level: DEBUG
+            loggers:
+                django:
+                    handlers:
+                        - console
+                    level: DEBUG
+                    propagate: true
+
+    django_psql: &django_psql
+        ENGINE: django.db.backends.postgresql
+        HOST: /tmp
+        PORT: 27901
+
+    accounting:
+        <<: *django_log_to_console  # ...paste!
+        API_SECRET: lapislazuli
+        DATABASES:
+            default:
+                <<: *django_psql
+                NAME: qabel-accounting
+                USER: qabel-accounting
+        CACHES:
+            default:
+                BACKEND: redis_cache.RedisCache
+                LOCATION:
+                    - "localhost:27902"
+                OPTIONS:
+                    CONNECTION_POOL_CLASS: redis.BlockingConnectionPool
+                    CONNECTION_POOL_CLASS_KWARGS:
+                        max_connections: 50
+                        timeout: 20
+                    DB: 1
+                    MAX_CONNECTIONS: 1000
+                    PARSER_CLASS: redis.connection.HiredisParser
+                    PICKLE_VERSION: -1
+        EMAIL_BACKEND: django.core.mail.backends.dummy.EmailBackend
+        uwsgi:
+            http-socket: :9696
+
+    drop:
+        <<: *django_log_to_console  # ...paste again!
+        DATABASES:
+            default:
+                <<: *django_psql
+                NAME: qabel-drop
+                USER: qabel-drop
+        uwsgi:
+            http-socket: :5000
+
+    index:
+        <<: *django_log_to_console  # ...paste again!
+        DATABASES:
+            default:
+                <<: *django_psql
+                NAME: qabel-index
+                USER: qabel-index
+        uwsgi:
+            http-socket: :9698

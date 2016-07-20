@@ -8,11 +8,10 @@ from invoke import Collection, Executor, task, run
 from invoke.util import cd
 
 import colorama
+colorama.init()
 from termcolor import cprint
 
 import tasks_servers
-
-colorama.init()
 
 try:
     # We import the tasks module of the applications via 'applications.XXX.tasks'; this extends the path so as to allow

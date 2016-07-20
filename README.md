@@ -19,8 +19,7 @@
     $ # Get fresh code (do this after one of the downstream repos was updated)
     $ inv update
 
-Note: `app-data` needs to be on a file system supporting links. Specifically, it
-can't be a VirtualBox shared directory. Fix:
+Note: `app-data` can't be a VirtualBox shared directory.
 
 
     $ cat invoke.yaml

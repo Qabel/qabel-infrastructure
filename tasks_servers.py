@@ -6,8 +6,12 @@ Tasks for managing ad-hoc PostgreSQL and Redis instances for testing purposes.
 import os
 import shutil
 import signal
+import sys
 import time
 from pathlib import Path
+from shutil import which
+
+from termcolor import cprint
 
 from invoke import Collection, Failure, task, run
 
@@ -19,6 +23,25 @@ PGSQL_NAMES = [
     'qabel-drop',
     'qabel-index',
 ]
+
+pg_ctl_candidates = (
+    'pg_ctl',
+    '/usr/lib/postgresql/9.5/bin/pg_ctl',
+    '/usr/lib/postgresql/9.6/bin/pg_ctl',
+)
+
+for pg_ctl_candidate in pg_ctl_candidates:
+    if which(pg_ctl_candidate) or Path(pg_ctl_candidate).exists():
+        PG_CTL = pg_ctl_candidate
+        if not which(pg_ctl_candidate):
+            cprint('[x] Applied patented wonder-medicine.', 'red')
+        break
+else:
+    cprint('No PostgreSQL found.', 'red', attrs=['bold'])
+    cprint('Checked these:', 'red')
+    for s in pg_ctl_candidates:
+        cprint('  - ' + s, 'red')
+    sys.exit(1)
 
 REDIS_PORT = 27902
 

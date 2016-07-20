@@ -165,7 +165,7 @@ def update(ctx):
     Update applications/* from git origin.
     """
     print_bold('Updating qabel-infrastructure')
-    run('git pull')
+    run('git pull --ff-only')
     for app, *_ in APPS_AND_DEPLOY_TASKS:
         papp = Path(app)
         if not papp.exists():
@@ -173,7 +173,7 @@ def update(ctx):
             run('git clone https://github.com/Qabel/qabel-{name} {path}'.format(name=papp.name, path=papp))
         with cd(app):
             print_bold('Updating', app)
-            run('git pull')
+            run('git pull --ff-only')
 
 
 namespace = Collection(deploy, start, stop, status, test, update, tasks_servers.servers)

@@ -109,6 +109,7 @@ qabel:
 
     drop:
         <<: *django_log_to_console  # ...paste again!
+        PUSH_NOTIFICATORS: []
         DATABASES:
             default:
                 <<: *django_psql

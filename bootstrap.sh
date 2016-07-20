@@ -1,4 +1,4 @@
-#!/bin/bash -ue
+#!/bin/bash -e
 
 PY=3.5
 VENV=_venv

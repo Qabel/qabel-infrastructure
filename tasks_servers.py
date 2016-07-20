@@ -6,12 +6,8 @@ Tasks for managing ad-hoc PostgreSQL and Redis instances for testing purposes.
 import os
 import shutil
 import signal
-import sys
 import time
 from pathlib import Path
-from shutil import which
-
-from termcolor import cprint
 
 from invoke import Collection, Failure, task, run
 
@@ -23,14 +19,6 @@ PGSQL_NAMES = [
     'qabel-drop',
     'qabel-index',
 ]
-
-PG_CTL = 'pg_ctl'
-if not which(PG_CTL):
-    cprint('pg_ctl not found, using pg_ctlcluster instead because this is Debian and Debian needs special care.', 'red')
-    PG_CTL = 'pg_ctlcluster'
-    if not which(PG_CTL):
-        cprint('pg_ctlcluster also not found.', 'red', attrs=['bold'])
-        sys.exit(1)
 
 REDIS_PORT = 27902
 

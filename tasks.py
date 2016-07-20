@@ -164,6 +164,8 @@ def update(ctx):
     """
     Update applications/* from git origin.
     """
+    print_bold('Updating qabel-infrastructure')
+    run('git pull')
     for app, *_ in APPS_AND_DEPLOY_TASKS:
         papp = Path(app)
         if not papp.exists():

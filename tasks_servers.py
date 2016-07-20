@@ -6,8 +6,12 @@ Tasks for managing ad-hoc PostgreSQL and Redis instances for testing purposes.
 import os
 import shutil
 import signal
+import sys
 import time
 from pathlib import Path
+from shutil import which
+
+from termcolor import cprint
 
 from invoke import Collection, Failure, task, run
 
@@ -19,6 +23,14 @@ PGSQL_NAMES = [
     'qabel-drop',
     'qabel-index',
 ]
+
+PG_CTL = 'pg_ctl'
+if not which(PG_CTL):
+    cprint('pg_ctl not found, using pg_ctlcluster instead because this is Debian and Debian needs special care.', 'red')
+    PG_CTL = 'pg_ctlcluster'
+    if not which(PG_CTL):
+        cprint('pg_ctlcluster also not found.', 'red', attrs=['bold'])
+        sys.exit(1)
 
 REDIS_PORT = 27902
 
@@ -75,13 +87,12 @@ def start_postgres(ctx):
 
     pgsql_path = Path(ctx.qabel.testing.app_data) / 'postgres'
     pgsql_path.parent.mkdir(exist_ok=True, parents=True)
-    pg_ctl = ctx.qabel.testing.pgctl
 
     first_time = not pgsql_path.exists()
     if first_time:
-        run('{pg_ctl} init -D {}'.format(pgsql_path, pg_ctl=pg_ctl))
+        run('{pg_ctl} init -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
     try:
-        run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=pg_ctl))
+        run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
     except Failure as failure:  # failure is not an option
 
         if failure.result.return_code != NOT_RUNNING:
@@ -89,12 +100,12 @@ def start_postgres(ctx):
 
         # Not runnning, let's get it up
         run('{pg_ctl} start -D {path} -o "-p {suffix} -c log_destination=stderr -c unix_socket_directories=/tmp"'
-            .format(path=pgsql_path, suffix=PGSQL_SUFFIX, pg_ctl=pg_ctl))
+            .format(path=pgsql_path, suffix=PGSQL_SUFFIX, pg_ctl=PG_CTL))
 
         # Wait for postgres to start up
         while True:
             try:
-                run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=pg_ctl))
+                run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
                 time.sleep(1)
             except Failure as failure:
                 if failure.result.return_code != NOT_RUNNING:
@@ -143,10 +154,9 @@ start_servers.add_task(start_redis)
 @task(name='postgres')
 def stop_postgres(ctx):
     pgsql_path = Path(ctx.qabel.testing.app_data) / 'postgres'
-    pg_ctl = ctx.qabel.testing.pgctl
     if not pgsql_path.exists():
         return
-    run('{pg_ctl} stop -D {}'.format(pgsql_path, pg_ctl=pg_ctl), warn=True)
+    run('{pg_ctl} stop -D {}'.format(pgsql_path, pg_ctl=PG_CTL), warn=True)
 
 
 @task(name='redis')

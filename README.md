@@ -19,13 +19,6 @@
     $ # Get fresh code (do this after one of the downstream repos was updated)
     $ inv update
 
-Note: Debian and derivates do something with pg_ctl for whatever reason. Fix:
-
-    $ cat invoke.yaml
-    qabel:
-        testing:
-            pgctl: pg_ctlcluster
-
 Note: `app-data` needs to be on a file system supporting links. Specifically, it
 can't be a VirtualBox shared directory. Fix:
 

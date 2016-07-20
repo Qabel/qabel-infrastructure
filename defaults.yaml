@@ -19,8 +19,6 @@ qabel:
         # Note: qabel.block.local-storage is a separate setting. If you also want the block uploads here,
         #       you'll need to change that one in your invoke.yaml as well.
         app_data: app-data
-        # Name of the "pgctl" command to use (name or path)
-        pgctl: pg_ctl
         # Name of the "redis-server" command to use (name or path)
         redis: redis-server
 

@@ -141,6 +141,7 @@ def test(ctx, pytest_args='', which='adhoc', quiet=False):
     if start_servers:
         # For correct resolution of pre/post tasks this is needed, a bit ugly but oh well.
         result = pallin.execute(
+            ('deploy', {}),
             ('start', {'background': True, 'quiet': quiet})
         )
         start_servers = result[start]  # only stop them if we actually had to start them

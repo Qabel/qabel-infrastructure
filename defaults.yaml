@@ -30,6 +30,13 @@ qabel:
             drop: http://localhost:5000/
             index: http://localhost:9698/
 
+        docker:
+            # This tests a Docker container (either from the inside or the outside, doesn't matter)
+            accounting: http://localhost:9696/
+            block: http://localhost:9697/
+            drop: http://localhost:5000/
+            index: http://localhost:9698/
+
         testing:
             accounting: https://test-accounting.qabel.de
             block: http://testing.qabel.de:8888

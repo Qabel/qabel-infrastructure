@@ -114,7 +114,7 @@ def start_postgres(ctx):
             .format(path=pgsql_path, suffix=PGSQL_SUFFIX, pg_ctl=PG_CTL))
 
         # Wait for postgres to start up
-        while True:
+        for i in range(30):
             try:
                 run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
                 time.sleep(1)
@@ -123,6 +123,9 @@ def start_postgres(ctx):
                     raise
             else:
                 break
+        else:
+            cprint('Could not start PostgreSQL.', 'red', attrs=['bold'])
+            sys.exit(1)
 
         # Try to create user + DB
         for name in PGSQL_NAMES:

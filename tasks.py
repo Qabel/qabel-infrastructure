@@ -12,6 +12,7 @@ colorama.init()
 from termcolor import cprint
 
 import tasks_servers
+import tasks_docker
 
 try:
     # We import the tasks module of the applications via 'applications.XXX.tasks'; this extends the path so as to allow
@@ -74,7 +75,7 @@ def deploy(ctx):
 
 
 @task(
-    pre=[deploy],
+    pre=[tasks_servers.start_all],
     help={
         'quiet': 'Smother uWSGI log output',
     },
@@ -175,7 +176,7 @@ def update(ctx):
             run('git pull --ff-only')
 
 
-namespace = Collection(deploy, start, stop, status, test, update, tasks_servers.servers)
+namespace = Collection(deploy, start, stop, status, test, update, tasks_servers.servers, tasks_docker.docker)
 if not HAVE_APPS:
     namespace = Collection(update)
 

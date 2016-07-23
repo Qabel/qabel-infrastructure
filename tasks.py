@@ -64,20 +64,35 @@ def print_bold(*args, **kwargs):
     cprint(' '.join(args), attrs=['bold'], **kwargs)
 
 
-def deploy_app(config_name, app):
-    deploy_tasks = APPS[app]
+def invoke_deploy_task(config_name, app, task):
     with cd(app):
-        ntasks = len(deploy_tasks)
-        for i, task in enumerate(deploy_tasks):
-            i += 1
-            cprint('Deploying ' + app, 'green', end=' ')
-            cprint('({i}/{ntasks}): {task}'.format_map(locals()))
-            run('inv --config ' + config_name + ' ' + task)
-        cprint('Deployed ' + app, 'green')
+        try:
+            run('inv --config ' + config_name + ' ' + task, hide='both', pty=True)
+        except Failure as failure:
+            print(failure.stdout)
+            raise
     
 
 @task(pre=[tasks_servers.start_all])
 def deploy(ctx):
+    def monitor_progress(futures):
+        mikado = ["._.", "._o", "o_O", "O_O", "O_o", "o_."]
+        num_futures = len(futures)
+        completed = 0
+        while futures:
+            for future in futures:
+                status_update = 'Deploying ({m}/{n} complete)'.format(m=completed, n=num_futures)
+                status_update += ' ' + mikado[0]
+                mikado += mikado.pop(0),
+                print(status_update, end='\r', flush=True)
+                try:
+                    future.result(0.1)
+                except concurrent.futures.TimeoutError:
+                    continue
+                futures.remove(future)
+                completed = num_futures - len(futures)
+        print(' ' * len(status_update), end='\r')
+        cprint('Deploying - done.', 'green', attrs=['bold'], flush=True)
     with NamedTemporaryFile('w', suffix='.yaml') as config:
         # Dump current contexts' configuration into temporary YAML
         # file and use that as explicit runtime configuration for the
@@ -86,9 +101,10 @@ def deploy(ctx):
         with concurrent.futures.ProcessPoolExecutor() as executor:
             futures = []
             for app in APPS:
-                futures += executor.submit(deploy_app, config.name, app),
-            for future in futures:
-                future.result()
+                deploy_tasks = APPS[app]
+                for task in deploy_tasks:
+                    futures += executor.submit(invoke_deploy_task, config.name, app, task),
+            monitor_progress(futures)
 
 
 @task(

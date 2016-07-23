@@ -43,7 +43,7 @@ else:
     HAVE_APPS = True
 
 
-APPS_AND_DEPLOY_TASKS = {
+APPS = {
     'applications/block': [
         'deploy',
      ],
@@ -65,7 +65,7 @@ def print_bold(*args, **kwargs):
 
 
 def deploy_app(config_name, app):
-    deploy_tasks = APPS_AND_DEPLOY_TASKS[app]
+    deploy_tasks = APPS[app]
     with cd(app):
         ntasks = len(deploy_tasks)
         for i, task in enumerate(deploy_tasks):
@@ -85,7 +85,7 @@ def deploy(ctx):
         dump(ctx.config._collection, config)
         with concurrent.futures.ProcessPoolExecutor() as executor:
             futures = []
-            for app in APPS_AND_DEPLOY_TASKS:
+            for app in APPS:
                 futures += executor.submit(deploy_app, config.name, app),
             for future in futures:
                 future.result()
@@ -163,7 +163,7 @@ def test(ctx, pytest_args='', which='adhoc', quiet=False):
         )
         start_servers = result[start]  # only stop them if we actually had to start them
     command_line = ['py.test']
-    for app in APPS_AND_DEPLOY_TASKS:
+    for app in APPS:
         *_, app = app.split('/')
         app_url = '--{app}-url {url}'.format(app=app, url=testenv[app])
         command_line.append(app_url)
@@ -184,7 +184,7 @@ def update(ctx):
     """
     print_bold('Updating qabel-infrastructure')
     run('git pull --ff-only')
-    for app in APPS_AND_DEPLOY_TASKS:
+    for app in APPS:
         papp = Path(app)
         if not papp.exists():
             print_bold('Cloning', app)
@@ -199,6 +199,6 @@ if not HAVE_APPS:
     namespace = Collection(update)
 
 # Load configuration explicitly
-for app in APPS_AND_DEPLOY_TASKS:
+for app in APPS:
     assert try_load(Path(app) / 'defaults.yaml', namespace)
 assert try_load(Path(__file__).with_name('defaults.yaml'), namespace)

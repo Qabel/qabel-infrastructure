@@ -3,7 +3,6 @@ applications/*/deployed
 applications/*/trees
 *__pycache__*
 .git
-*/.git
 
 # Exclude any site-local config we might have in this directory
 invoke.yaml

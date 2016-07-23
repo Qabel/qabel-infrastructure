@@ -216,6 +216,7 @@ def update(ctx):
         if not papp.exists():
             print_bold('Cloning', app)
             run('git clone https://github.com/Qabel/qabel-{name} {path}'.format(name=papp.name, path=papp))
+            continue  # no need to pull if we just cloned
         with cd(app):
             print_bold('Updating', app)
             run('git pull --ff-only')

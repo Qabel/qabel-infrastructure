@@ -1,15 +1,18 @@
 
+import concurrent.futures
 import signal
 import sys
+from tempfile import NamedTemporaryFile
 from functools import partial
 from pathlib import Path
 
 from invoke import Collection, Executor, task, run
 from invoke.util import cd
+from invoke.vendor.yaml3 import dump
 
 import colorama
 colorama.init()
-from termcolor import cprint
+from termcolor import cprint, colored
 
 import tasks_servers
 import tasks_docker
@@ -40,38 +43,52 @@ else:
     HAVE_APPS = True
 
 
-APPS_AND_DEPLOY_TASKS = [
-    ('applications/block',
-     [
-         deploy_block
-     ]),
-    ('applications/accounting',
-     [
-         accounting['deploy'],
-         partial(accounting['manage'], command='loaddata testdata.json'),
-     ]),
-    ('applications/drop',
-     [
-         drop['deploy'],
-     ]),
-    ('applications/index',
-     [
-         index['deploy'],
-     ]),
-]
+APPS_AND_DEPLOY_TASKS = {
+    'applications/block': [
+        'deploy',
+     ],
+    'applications/accounting': [
+        'deploy',
+        'manage -c "loaddata testdata.json"',
+     ],
+    'applications/drop': [
+        'deploy',
+     ],
+    'applications/index': [
+        'deploy',
+     ],
+}
 
 
 def print_bold(*args, **kwargs):
     cprint(' '.join(args), attrs=['bold'], **kwargs)
 
 
+def deploy_app(config_name, app):
+    deploy_tasks = APPS_AND_DEPLOY_TASKS[app]
+    with cd(app):
+        ntasks = len(deploy_tasks)
+        for i, task in enumerate(deploy_tasks):
+            i += 1
+            cprint('Deploying ' + app, 'green', end=' ')
+            cprint('({i}/{ntasks}): {task}'.format_map(locals()))
+            run('inv --config ' + config_name + ' ' + task)
+        cprint('Deployed ' + app, 'green')
+    
+
 @task(pre=[tasks_servers.start_all])
 def deploy(ctx):
-    for app, deploy_tasks in APPS_AND_DEPLOY_TASKS:
-        with cd(app):
-            print_bold('Deploying', app)
-            for task in deploy_tasks:
-                task(ctx)
+    with NamedTemporaryFile('w', suffix='.yaml') as config:
+        # Dump current contexts' configuration into temporary YAML
+        # file and use that as explicit runtime configuration for the
+        # deployment tasks (which run in PPE worker processes).
+        dump(ctx.config._collection, config)
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            futures = []
+            for app in APPS_AND_DEPLOY_TASKS:
+                futures += executor.submit(deploy_app, config.name, app),
+            for future in futures:
+                future.result()
 
 
 @task(
@@ -146,7 +163,7 @@ def test(ctx, pytest_args='', which='adhoc', quiet=False):
         )
         start_servers = result[start]  # only stop them if we actually had to start them
     command_line = ['py.test']
-    for app, _ in APPS_AND_DEPLOY_TASKS:
+    for app in APPS_AND_DEPLOY_TASKS:
         *_, app = app.split('/')
         app_url = '--{app}-url {url}'.format(app=app, url=testenv[app])
         command_line.append(app_url)
@@ -167,7 +184,7 @@ def update(ctx):
     """
     print_bold('Updating qabel-infrastructure')
     run('git pull --ff-only')
-    for app, *_ in APPS_AND_DEPLOY_TASKS:
+    for app in APPS_AND_DEPLOY_TASKS:
         papp = Path(app)
         if not papp.exists():
             print_bold('Cloning', app)
@@ -182,6 +199,6 @@ if not HAVE_APPS:
     namespace = Collection(update)
 
 # Load configuration explicitly
-for app, *_ in APPS_AND_DEPLOY_TASKS:
+for app in APPS_AND_DEPLOY_TASKS:
     assert try_load(Path(app) / 'defaults.yaml', namespace)
 assert try_load(Path(__file__).with_name('defaults.yaml'), namespace)

@@ -1,4 +1,5 @@
 _venv
+app-data
 applications/*/deployed
 applications/*/trees
 *__pycache__*

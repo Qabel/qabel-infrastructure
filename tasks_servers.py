@@ -114,10 +114,10 @@ def start_postgres(ctx):
             .format(path=pgsql_path, log=pgsql_path.with_suffix('.log'), suffix=PGSQL_SUFFIX, pg_ctl=PG_CTL))
 
         # Wait for postgres to start up
-        for i in range(30):
+        for i in range(10):
             try:
-                run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
                 time.sleep(1)
+                run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
             except Failure as failure:
                 if failure.result.return_code != NOT_RUNNING:
                     raise

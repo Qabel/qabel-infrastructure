@@ -6,7 +6,7 @@ from tempfile import NamedTemporaryFile
 from functools import partial
 from pathlib import Path
 
-from invoke import Collection, Executor, task, run
+from invoke import Collection, Executor, Failure, task, run
 from invoke.util import cd
 from invoke.vendor.yaml3 import dump
 
@@ -69,15 +69,16 @@ def invoke_deploy_task(config_name, app, task):
         try:
             run('inv --config ' + config_name + ' ' + task, hide='both', pty=True)
         except Failure as failure:
-            print(failure.stdout)
+            cprint('{app}: task "{task}" failed'.format_map(locals()), 'red')
+            cprint('Error output is:', 'red')
+            print(failure.result.stdout, end='')
             raise
-    
+
 
 @task(pre=[tasks_servers.start_all])
 def deploy(ctx):
-    def monitor_progress(futures):
+    def monitor_progress(futures, num_futures):
         mikado = ["._.", "._o", "o_O", "O_O", "O_o", "o_."]
-        num_futures = len(futures)
         completed = 0
         while futures:
             for future in futures:
@@ -90,9 +91,18 @@ def deploy(ctx):
                 except concurrent.futures.TimeoutError:
                     continue
                 futures.remove(future)
+                futures += future.continue_dependent()
                 completed = num_futures - len(futures)
         print(' ' * len(status_update), end='\r')
         cprint('Deploying - done.', 'green', attrs=['bold'], flush=True)
+    def submit(config_name, executor, app, tasks):
+        if tasks:
+            tasks = list(tasks)
+            task = tasks.pop(0)
+            future = executor.submit(invoke_deploy_task, config_name, app, task)
+            future.continue_dependent = partial(submit, config_name, executor, app, tasks)
+            return [future]
+        return []
     with NamedTemporaryFile('w', suffix='.yaml') as config:
         # Dump current contexts' configuration into temporary YAML
         # file and use that as explicit runtime configuration for the
@@ -100,11 +110,12 @@ def deploy(ctx):
         dump(ctx.config._collection, config)
         with concurrent.futures.ProcessPoolExecutor() as executor:
             futures = []
+            total_number_of_tasks = 0
             for app in APPS:
                 deploy_tasks = APPS[app]
-                for task in deploy_tasks:
-                    futures += executor.submit(invoke_deploy_task, config.name, app, task),
-            monitor_progress(futures)
+                total_number_of_tasks += len(deploy_tasks)
+                futures += submit(config.name, executor, app, deploy_tasks)
+            monitor_progress(futures, total_number_of_tasks)
 
 
 @task(

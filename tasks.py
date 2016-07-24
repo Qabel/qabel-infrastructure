@@ -119,7 +119,7 @@ def deploy(ctx):
 
 
 @task(
-    pre=[tasks_servers.start_all],
+    pre=[deploy],
     help={
         'quiet': 'Smother uWSGI log output',
     },

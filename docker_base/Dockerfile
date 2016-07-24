@@ -3,6 +3,10 @@
 
 FROM ubuntu:16.04
 MAINTAINER Marian Beermann <beermann@qabel.de>
+
+# Disable the cache which is not useful here.
+ENV PIP_NO_CACHE=yes
+
 RUN apt-get update && \
     apt-get install -y build-essential \
                        git \

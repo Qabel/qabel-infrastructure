@@ -5,7 +5,7 @@
 # microservices from downstream repos using this docker container.
 # I.e. they neither have to know nor care about them.
 
-FROM qabel/base:v3
+FROM qabel/base:v4
 MAINTAINER Marian Beermann <beermann@qabel.de>
 
 # Docker v1.12 (RC) notice:
@@ -14,8 +14,6 @@ MAINTAINER Marian Beermann <beermann@qabel.de>
 WORKDIR /home/qabel
 ADD . .
 
-# Disable the cache which is not useful here.
-ENV PIP_NO_CACHE=yes
 RUN bash bootstrap.sh && \
     chown -R qabel . && chgrp -R qabel .
 

@@ -4,10 +4,12 @@
 FROM ubuntu:16.04
 MAINTAINER Marian Beermann <beermann@qabel.de>
 RUN apt-get update && \
-    apt-get install -y postgresql-9.5 libpq-dev \
-                       redis-server redis-tools \
-                       build-essential libffi-dev git \
-                       python3.5 python3-virtualenv virtualenv python3-pip && \
+    apt-get install -y build-essential \
+                       git \
+                       libffi-dev \
+                       postgresql-9.5 libpq-dev \
+                       python3.5 python3-virtualenv virtualenv python3-pip \
+                       redis-server redis-tools && \
     apt-get clean && \
     pip3 install -U pip setuptools wheel
 

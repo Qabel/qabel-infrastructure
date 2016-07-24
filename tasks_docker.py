@@ -1,6 +1,6 @@
 
 """
-Tasks for smooth docking operations.
+Tasks for smooth Docker operations.
 """
 
 from termcolor import cprint

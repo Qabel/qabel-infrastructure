@@ -117,10 +117,9 @@ def start_postgres(ctx):
         for i in range(10):
             try:
                 time.sleep(1)
-                run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
+                run('psql -l -h /tmp -p {}'.format(PGSQL_SUFFIX), hide='both')
             except Failure as failure:
-                if failure.result.return_code != NOT_RUNNING:
-                    raise
+                pass
             else:
                 break
         else:

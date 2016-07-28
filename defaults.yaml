@@ -125,6 +125,7 @@ qabel:
 
     index:
         <<: *django_log_to_console  # ...paste again!
+        FACET_SHALLOW_VERIFICATION: true
         DATABASES:
             default:
                 <<: *django_psql

@@ -133,3 +133,6 @@ qabel:
                 USER: qabel-index
         uwsgi:
             http-socket: :9698
+            # This looks very much like a bug in httpclient, so don't use this in a
+            # production setup where a reverse-proxy is used.
+            add-header: 'Connection: Close'

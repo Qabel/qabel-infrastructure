@@ -30,6 +30,13 @@ qabel:
             drop: http://localhost:5000/
             index: http://localhost:9698/
 
+        docker:
+            # This tests a Docker container (either from the inside or the outside, doesn't matter)
+            accounting: http://localhost:9696/
+            block: http://localhost:9697/
+            drop: http://localhost:5000/
+            index: http://localhost:9698/
+
         testing:
             accounting: https://test-accounting.qabel.de
             block: http://testing.qabel.de:8888
@@ -118,6 +125,7 @@ qabel:
 
     index:
         <<: *django_log_to_console  # ...paste again!
+        FACET_SHALLOW_VERIFICATION: true
         DATABASES:
             default:
                 <<: *django_psql
@@ -125,3 +133,6 @@ qabel:
                 USER: qabel-index
         uwsgi:
             http-socket: :9698
+            # This looks very much like a bug in httpclient, so don't use this in a
+            # production setup where a reverse-proxy is used.
+            add-header: 'Connection: Close'

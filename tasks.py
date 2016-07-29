@@ -1,17 +1,21 @@
 
+import concurrent.futures
 import signal
 import sys
+from tempfile import NamedTemporaryFile
 from functools import partial
 from pathlib import Path
 
-from invoke import Collection, Executor, task, run
+from invoke import Collection, Executor, Failure, task, run
 from invoke.util import cd
+from invoke.vendor.yaml3 import dump
 
 import colorama
 colorama.init()
-from termcolor import cprint
+from termcolor import cprint, colored
 
 import tasks_servers
+import tasks_docker
 
 try:
     # We import the tasks module of the applications via 'applications.XXX.tasks'; this extends the path so as to allow
@@ -39,38 +43,79 @@ else:
     HAVE_APPS = True
 
 
-APPS_AND_DEPLOY_TASKS = [
-    ('applications/block',
-     [
-         deploy_block
-     ]),
-    ('applications/accounting',
-     [
-         accounting['deploy'],
-         partial(accounting['manage'], command='loaddata testdata.json'),
-     ]),
-    ('applications/drop',
-     [
-         drop['deploy'],
-     ]),
-    ('applications/index',
-     [
-         index['deploy'],
-     ]),
-]
+APPS = {
+    'applications/block': [
+        'deploy',
+     ],
+    'applications/accounting': [
+        'deploy',
+        'manage -c "loaddata testdata.json"',
+     ],
+    'applications/drop': [
+        'deploy',
+     ],
+    'applications/index': [
+        'deploy',
+     ],
+}
 
 
 def print_bold(*args, **kwargs):
     cprint(' '.join(args), attrs=['bold'], **kwargs)
 
 
+def invoke_deploy_task(config_name, app, task):
+    with cd(app):
+        try:
+            run('inv --config ' + config_name + ' ' + task, hide='both', pty=True)
+        except Failure as failure:
+            cprint('{app}: task "{task}" failed'.format_map(locals()), 'red')
+            cprint('Error output is:', 'red')
+            print(failure.result.stdout, end='')
+            raise
+
+
 @task(pre=[tasks_servers.start_all])
 def deploy(ctx):
-    for app, deploy_tasks in APPS_AND_DEPLOY_TASKS:
-        with cd(app):
-            print_bold('Deploying', app)
-            for task in deploy_tasks:
-                task(ctx)
+    def monitor_progress(futures, num_futures):
+        mikado = ["._.", "._o", "o_O", "O_O", "O_o", "o_."]
+        completed = 0
+        while futures:
+            for future in futures:
+                status_update = 'Deploying ({m}/{n} complete)'.format(m=completed, n=num_futures)
+                status_update += ' ' + mikado[0]
+                mikado += mikado.pop(0),
+                print(status_update, end='\r', flush=True)
+                try:
+                    future.result(0.1)
+                except concurrent.futures.TimeoutError:
+                    continue
+                futures.remove(future)
+                futures += future.continue_dependent()
+                completed = num_futures - len(futures)
+        print(' ' * len(status_update), end='\r')
+        cprint('Deploying - done.', 'green', attrs=['bold'], flush=True)
+    def submit(config_name, executor, app, tasks):
+        if tasks:
+            tasks = list(tasks)
+            task = tasks.pop(0)
+            future = executor.submit(invoke_deploy_task, config_name, app, task)
+            future.continue_dependent = partial(submit, config_name, executor, app, tasks)
+            return [future]
+        return []
+    with NamedTemporaryFile('w', suffix='.yaml') as config:
+        # Dump current contexts' configuration into temporary YAML
+        # file and use that as explicit runtime configuration for the
+        # deployment tasks (which run in PPE worker processes).
+        dump(ctx.config._collection, config)
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+            futures = []
+            total_number_of_tasks = 0
+            for app in APPS:
+                deploy_tasks = APPS[app]
+                total_number_of_tasks += len(deploy_tasks)
+                futures += submit(config.name, executor, app, deploy_tasks)
+            monitor_progress(futures, total_number_of_tasks)
 
 
 @task(
@@ -144,7 +189,7 @@ def test(ctx, pytest_args='', which='adhoc', quiet=False):
         )
         start_servers = result[start]  # only stop them if we actually had to start them
     command_line = ['py.test']
-    for app, _ in APPS_AND_DEPLOY_TASKS:
+    for app in APPS:
         *_, app = app.split('/')
         app_url = '--{app}-url {url}'.format(app=app, url=testenv[app])
         command_line.append(app_url)
@@ -165,21 +210,22 @@ def update(ctx):
     """
     print_bold('Updating qabel-infrastructure')
     run('git pull --ff-only')
-    for app, *_ in APPS_AND_DEPLOY_TASKS:
+    for app in APPS:
         papp = Path(app)
         if not papp.exists():
             print_bold('Cloning', app)
             run('git clone https://github.com/Qabel/qabel-{name} {path}'.format(name=papp.name, path=papp))
+            continue  # no need to pull if we just cloned
         with cd(app):
             print_bold('Updating', app)
             run('git pull --ff-only')
 
 
-namespace = Collection(deploy, start, stop, status, test, update, tasks_servers.servers)
+namespace = Collection(deploy, start, stop, status, test, update, tasks_servers.servers, tasks_docker.docker)
 if not HAVE_APPS:
     namespace = Collection(update)
 
 # Load configuration explicitly
-for app, *_ in APPS_AND_DEPLOY_TASKS:
+for app in APPS:
     assert try_load(Path(app) / 'defaults.yaml', namespace)
 assert try_load(Path(__file__).with_name('defaults.yaml'), namespace)

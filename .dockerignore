@@ -1,0 +1,10 @@
+_venv
+app-data
+applications/*/deployed
+applications/*/trees
+*__pycache__*
+.git
+
+# Exclude any site-local config we might have in this directory
+invoke.yaml
+qabel.yaml

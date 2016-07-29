@@ -110,19 +110,21 @@ def start_postgres(ctx):
             raise
 
         # Not runnning, let's get it up
-        run('{pg_ctl} start -D {path} -o "-p {suffix} -c log_destination=stderr -c unix_socket_directories=/tmp"'
-            .format(path=pgsql_path, suffix=PGSQL_SUFFIX, pg_ctl=PG_CTL))
+        run('{pg_ctl} start -D {path} -l {log} -o "-p {suffix} -c unix_socket_directories=/tmp"'
+            .format(path=pgsql_path, log=pgsql_path.with_suffix('.log'), suffix=PGSQL_SUFFIX, pg_ctl=PG_CTL))
 
         # Wait for postgres to start up
-        while True:
+        for i in range(10):
             try:
-                run('{pg_ctl} status -D {}'.format(pgsql_path, pg_ctl=PG_CTL))
                 time.sleep(1)
+                run('psql -l -h /tmp -p {}'.format(PGSQL_SUFFIX), hide='both')
             except Failure as failure:
-                if failure.result.return_code != NOT_RUNNING:
-                    raise
+                pass
             else:
                 break
+        else:
+            cprint('Could not start PostgreSQL.', 'red', attrs=['bold'])
+            sys.exit(1)
 
         # Try to create user + DB
         for name in PGSQL_NAMES:
@@ -135,16 +137,21 @@ def start_redis(ctx):
     redis_path = app_data / 'redis'
     redis_pidfile = app_data / 'redis.pid'
     redis_server = ctx.qabel.testing.redis
+    if pidfile_alive(redis_pidfile):
+        print('redis is running')
+        return
     command_line = [
         redis_server,
         '--bind', 'localhost',
         '--port', REDIS_PORT,
         '--pidfile', redis_pidfile.absolute(),
+        '--logfile', redis_path.with_suffix('.log'),
         '--dir', redis_path,
         '&'
     ]
     redis_path.mkdir(exist_ok=True, parents=True)
     run(' '.join(map(str, command_line)))
+    print('redis started')
 
 
 @task(pre=[start_postgres, start_redis])

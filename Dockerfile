@@ -10,6 +10,7 @@ MAINTAINER Marian Beermann <beermann@qabel.de>
 
 # Docker v1.12 (RC) notice:
 # Can save some typing here with SHELL (allowing .bashrc et al)
+ENV LANG en_US.UTF8
 
 WORKDIR /home/qabel
 ADD . .

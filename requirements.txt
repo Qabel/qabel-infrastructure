@@ -7,4 +7,3 @@ pprintpp
 termcolor
 colorama
 pytest-timeout
-uwsgi

@@ -126,7 +126,7 @@ qabel:
     index:
         <<: *django_log_to_console  # ...paste again!
         FACET_SHALLOW_VERIFICATION: true
-        REQUIRE_AUTHORIZATION: true
+        REQUIRE_AUTHORIZATION: false
         ACCOUNTING_URL: http://localhost:9696
         ACCOUNTING_APISECRET: lapislazuli
         DATABASES:

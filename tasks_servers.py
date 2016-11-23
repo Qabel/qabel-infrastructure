@@ -124,6 +124,7 @@ def start_postgres(ctx):
                 break
         else:
             cprint('Could not start PostgreSQL.', 'red', attrs=['bold'])
+            cprint('Check {log} for errors'.format(log=pgsql_path.with_suffix('.log')), attrs=['bold'])
             sys.exit(1)
 
         # Try to create user + DB
